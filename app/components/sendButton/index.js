@@ -1,83 +1,25 @@
-import React, {useState} from 'react';
+import React, {useEffect, useState} from 'react';
 import {
-	View,
+	Animated,
+	Button,
+	Easing,
 	StyleSheet,
 	Text,
 	TouchableWithoutFeedback,
-	Button,
+	View,
 } from 'react-native';
-import CrossSvg from '../../img/svg/CrossSvg';
-import Animated, {
-	cond,
-	eq,
-	Extrapolate,
-	interpolate,
-	set,
-	useCode,
-	Value,
-	Easing,
-	block,
-	clockRunning,
-	stopClock,
-	debug,
-	timing,
-	startClock,
-	Clock,
-	color,
-} from 'react-native-reanimated';
 import ArrowSvg from '../../img/svg/ArrowSvg';
-
-function runTiming(clock, value, dest) {
-	const state = {
-		finished: new Value(0),
-		position: new Value(0),
-		time: new Value(0),
-		frameTime: new Value(0),
-	};
-
-	const config = {
-		duration: 300,
-		toValue: new Value(0),
-		easing: Easing.linear,
-	};
-
-	return block([
-		cond(
-			clockRunning(clock),
-			[
-				// if the clock is already running we update the toValue, in case a new dest has been passed in
-				set(config.toValue, dest),
-			],
-			[
-				// if the clock isn't running we reset all the animation params and start the clock
-				set(state.finished, 0),
-				set(state.time, 0),
-				set(state.position, value),
-				set(state.frameTime, 0),
-				set(config.toValue, dest),
-				startClock(clock),
-			],
-		),
-		// we run the step here that is going to update position
-		timing(clock, state, config),
-		// if the animation is over we stop the clock
-		cond(state.finished, debug('stop clock', stopClock(clock))),
-		// we made the block return the updated position
-		state.position,
-	]);
-}
 
 const buttonWidth = 350;
 const buttonHeight = 70;
 
 const SendButton = () => {
 	const [status, setStatus] = useState('init');
-	const [animationHelpful, setAnimationHelpful] = useState(new Value(0));
-	const [animationHelpfulSecondStep, setAnimationHelpfulSecondStep] = useState(
-		new Value(0),
-	);
-
+	const buttonContentWidthAnimatedValue = new Animated.Value(150);
+	const buttonOptionWidthAnimatedValue = new Animated.Value(150);
+	const barDownloadWidth = new Animated.Value(0);
 	let optionContent = null;
+	let content = null;
 	if (status === 'init') {
 		optionContent = (
 			<View
@@ -94,43 +36,96 @@ const SendButton = () => {
 				<ArrowSvg width={20} height={20} color={'#fff'} />
 			</View>
 		);
-	} else if (status === 'firstStep') {
-		optionContent = <CrossSvg width={20} height={20} color={'#fff'} />;
-	} else if (status === 'secondStep') {
-		optionContent = <CrossSvg width={20} height={20} color={'#fff'} />;
+	} else if (status === 'loadingStart') {
+		content = (
+			<View>
+				<View
+					style={{
+						width: buttonWidth - buttonHeight - 20,
+						height: 5,
+						// borderWidth: 1,
+						borderTopRightRadius: 10,
+						borderBottomRightRadius: 10,
+					}}>
+					<Animated.View
+						style={{
+							...StyleSheet.absoluteFill,
+							backgroundColor: 'green',
+							width: barDownloadWidth,
+							borderTopRightRadius: 10,
+							borderBottomRightRadius: 10,
+						}}
+					/>
+				</View>
+			</View>
+		);
+		optionContent = (
+			<View
+				style={{
+					flexDirection: 'row',
+					width: buttonHeight - 30,
+					justifyContent: 'space-around',
+				}}>
+				<View
+					style={{
+						width: 10,
+						height: 10,
+						backgroundColor: '#fff',
+						borderRadius: 5,
+					}}
+				/>
+				<View
+					style={{
+						width: 10,
+						height: 10,
+						backgroundColor: '#fff',
+						borderRadius: 5,
+					}}
+				/>
+				<View
+					style={{
+						width: 10,
+						height: 10,
+						backgroundColor: '#fff',
+						borderRadius: 5,
+					}}
+				/>
+			</View>
+		);
 	}
 
-	const animation = new Value(0);
-	const firstStepClock = new Clock();
-
-	const buttonWidthInterpolate = interpolate(animation, {
-		inputRange: [0, 0.5],
-		outputRange: [150, buttonWidth],
-		extrapolate: Extrapolate.CLAMP,
-	});
-	const optionsWidth = interpolate(animation, {
-		inputRange: [0, 0.5],
-		outputRange: [150, buttonHeight],
-		extrapolate: Extrapolate.CLAMP,
-	});
-
-	useCode(() => {
-		return [
-			cond(eq(animationHelpful, 0), [
-				set(animation, runTiming(firstStepClock, animation, 0)),
-			]),
-			cond(eq(animationHelpful, 1), [
-				set(animation, runTiming(firstStepClock, animation, 1)),
-			]),
-		];
-	}, [animationHelpful]);
+	useEffect(() => {
+		console.log(status);
+		if (status === 'loadingStart') {
+			Animated.parallel([
+				Animated.timing(buttonContentWidthAnimatedValue, {
+					duration: 500,
+					easing: Easing.inOut(Easing.ease),
+					delay: 0,
+					toValue: buttonWidth,
+					useNativeDriver: false,
+				}),
+				Animated.timing(buttonOptionWidthAnimatedValue, {
+					duration: 500,
+					easing: Easing.inOut(Easing.ease),
+					delay: 0,
+					toValue: buttonHeight,
+					useNativeDriver: false,
+				}),
+			]).start(() => {
+				Animated.timing(barDownloadWidth, {
+					duration: 2000,
+					easing: Easing.inOut(Easing.ease),
+					delay: 0,
+					toValue: buttonWidth - buttonHeight - 20,
+					useNativeDriver: false,
+				}).start();
+			});
+		}
+	}, [status]);
 
 	const startSend = () => {
-		setAnimationHelpful(new Value(1));
-		setStatus('firstStep');
-		setTimeout(() => {
-			setStatus('va');
-		}, 1000);
+		setStatus('loadingStart');
 	};
 	return (
 		<>
@@ -139,29 +134,38 @@ const SendButton = () => {
 					<Animated.View
 						style={[
 							styles.buttonOptionPart,
-							{
-								width: optionsWidth,
-								backgroundColor:
-									status === 'firstStep' && status !== 'secondStep'
-										? 'red'
-										: '#53485b',
-							},
+							{width: buttonOptionWidthAnimatedValue},
 						]}>
 						{optionContent}
 					</Animated.View>
 				</TouchableWithoutFeedback>
 				<Animated.View
-					style={[styles.buttonContentPart, {width: buttonWidthInterpolate}]}>
-					<Text style={[styles.text, styles.errorColorText]}>
-						Ooops! Something went wrong!
-					</Text>
+					style={[
+						styles.buttonContentPart,
+						{width: buttonContentWidthAnimatedValue},
+					]}>
+					<Text style={[styles.text, styles.errorColorText]}>{content}</Text>
 				</Animated.View>
 			</View>
 			<Button
 				title={'reset'}
 				onPress={() => {
-					setStatus('init');
-					animationHelpful.setValue(0);
+					Animated.parallel([
+						Animated.timing(buttonContentWidthAnimatedValue, {
+							duration: 500,
+							easing: Easing.inOut(Easing.ease),
+							delay: 0,
+							toValue: 150,
+							useNativeDriver: false,
+						}),
+						Animated.timing(buttonOptionWidthAnimatedValue, {
+							duration: 500,
+							easing: Easing.inOut(Easing.ease),
+							delay: 0,
+							toValue: 150,
+							useNativeDriver: false,
+						}),
+					]).start(() => setStatus('init'));
 				}}
 			/>
 		</>
