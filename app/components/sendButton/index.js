@@ -9,17 +9,54 @@ import {
 	View,
 } from 'react-native';
 import ArrowSvg from '../../img/svg/ArrowSvg';
+import ReloadSvg from '../../img/svg/ReloadSvg';
 
 const buttonWidth = 350;
 const buttonHeight = 70;
+const jumpLoadingTime = 120;
 
 const SendButton = () => {
 	const [status, setStatus] = useState('init');
 	const buttonContentWidthAnimatedValue = new Animated.Value(150);
 	const buttonOptionWidthAnimatedValue = new Animated.Value(150);
 	const barDownloadWidth = new Animated.Value(0);
+
+	const topOffsetOne = new Animated.Value(0);
+	const topOffsetTwo = new Animated.Value(0);
+	const topOffsetThree = new Animated.Value(0);
+
+	const errorMessageDropDown = new Animated.Value(-30);
+
+	const optionContentBg = errorMessageDropDown.interpolate({
+		inputRange: [-30, 0],
+		outputRange: ['#53485b', 'red'],
+		extrapolate: 'clamp',
+	});
+
+	const errorMessageOpacity = errorMessageDropDown.interpolate({
+		inputRange: [-30, 0],
+		outputRange: [0, 1],
+		extrapolate: 'clamp',
+	});
+
 	let optionContent = null;
 	let content = null;
+
+	const repeatAnimation = () => {
+		resetAnimation();
+	};
+	const resetAnimation = () => {
+		setStatus('init');
+		buttonContentWidthAnimatedValue.setValue(150);
+		buttonOptionWidthAnimatedValue.setValue(150);
+		barDownloadWidth.setValue(0);
+
+		topOffsetOne.setValue(0);
+		topOffsetTwo.setValue(0);
+		topOffsetThree.setValue(0);
+		errorMessageDropDown.setValue(0);
+	};
+
 	if (status === 'init') {
 		optionContent = (
 			<View
@@ -43,7 +80,6 @@ const SendButton = () => {
 					style={{
 						width: buttonWidth - buttonHeight - 20,
 						height: 5,
-						// borderWidth: 1,
 						borderTopRightRadius: 10,
 						borderBottomRightRadius: 10,
 					}}>
@@ -66,33 +102,119 @@ const SendButton = () => {
 					width: buttonHeight - 30,
 					justifyContent: 'space-around',
 				}}>
-				<View
+				<Animated.View
 					style={{
 						width: 10,
 						height: 10,
 						backgroundColor: '#fff',
 						borderRadius: 5,
+						transform: [{translateY: topOffsetOne}],
 					}}
 				/>
-				<View
+				<Animated.View
 					style={{
 						width: 10,
 						height: 10,
 						backgroundColor: '#fff',
 						borderRadius: 5,
+						transform: [{translateY: topOffsetTwo}],
 					}}
 				/>
-				<View
+				<Animated.View
 					style={{
 						width: 10,
 						height: 10,
 						backgroundColor: '#fff',
 						borderRadius: 5,
+						transform: [{translateY: topOffsetThree}],
 					}}
 				/>
 			</View>
 		);
+	} else if (status === 'finishLoading') {
+		content = (
+			<Animated.View
+				style={{
+					flex: 1,
+					justifyContent: 'center',
+					alignItems: 'center',
+					opacity: errorMessageOpacity,
+					transform: [{translateY: errorMessageDropDown}],
+				}}>
+				<Text style={{color: 'red'}}>Ooops! something went wrong</Text>
+			</Animated.View>
+		);
+		optionContent = (
+			<TouchableWithoutFeedback
+				onPress={repeatAnimation}
+				style={{
+					flex: 1,
+					justifyContent: 'center',
+					alignItems: 'center',
+				}}>
+				<Animated.View
+					style={{
+						flex: 1,
+						opacity: errorMessageOpacity,
+						justifyContent: 'center',
+						alignItems: 'center',
+						backgroundColor: optionContentBg,
+						width: buttonOptionWidthAnimatedValue,
+					}}>
+					<ReloadSvg width={20} height={20} color={'#fff'} />
+				</Animated.View>
+			</TouchableWithoutFeedback>
+		);
 	}
+	const getJumpCircleAnimation = () => {
+		return Animated.sequence([
+			Animated.timing(topOffsetOne, {
+				duration: jumpLoadingTime,
+				easing: Easing.inOut(Easing.ease),
+				toValue: -10,
+				useNativeDriver: false,
+			}),
+			Animated.timing(topOffsetTwo, {
+				duration: jumpLoadingTime,
+				easing: Easing.inOut(Easing.ease),
+				toValue: -10,
+				useNativeDriver: false,
+			}),
+			Animated.timing(topOffsetThree, {
+				duration: jumpLoadingTime,
+				easing: Easing.inOut(Easing.ease),
+				toValue: -10,
+				useNativeDriver: false,
+			}),
+		]);
+	};
+	const getDownCircleAnimation = () => {
+		return Animated.sequence([
+			Animated.timing(topOffsetOne, {
+				duration: jumpLoadingTime,
+				easing: Easing.inOut(Easing.ease),
+				toValue: 0,
+				useNativeDriver: false,
+			}),
+			Animated.timing(topOffsetTwo, {
+				duration: jumpLoadingTime,
+				easing: Easing.inOut(Easing.ease),
+				toValue: 0,
+				useNativeDriver: false,
+			}),
+			Animated.timing(topOffsetThree, {
+				duration: jumpLoadingTime,
+				easing: Easing.inOut(Easing.ease),
+				toValue: 0,
+				useNativeDriver: false,
+			}),
+		]);
+	};
+	const getLoopLoadingCicleAnimation = () => {
+		return Animated.loop(
+			Animated.sequence([getJumpCircleAnimation(), getDownCircleAnimation()]),
+		);
+	};
 
 	useEffect(() => {
 		console.log(status);
@@ -113,14 +235,45 @@ const SendButton = () => {
 					useNativeDriver: false,
 				}),
 			]).start(() => {
-				Animated.timing(barDownloadWidth, {
-					duration: 2000,
-					easing: Easing.inOut(Easing.ease),
-					delay: 0,
-					toValue: buttonWidth - buttonHeight - 20,
-					useNativeDriver: false,
-				}).start();
+				Animated.parallel([
+					Animated.timing(barDownloadWidth, {
+						duration: 2000,
+						easing: Easing.inOut(Easing.ease),
+						delay: 0,
+						toValue: buttonWidth - buttonHeight - 20,
+						useNativeDriver: false,
+					}).start(() => {
+						getLoopLoadingCicleAnimation().stop();
+						Animated.sequence([
+							Animated.timing(topOffsetOne, {
+								duration: jumpLoadingTime,
+								toValue: 0,
+								useNativeDriver: false,
+							}),
+							Animated.timing(topOffsetTwo, {
+								duration: jumpLoadingTime,
+								toValue: 0,
+								useNativeDriver: false,
+							}),
+							Animated.timing(topOffsetThree, {
+								duration: jumpLoadingTime,
+								toValue: 0,
+								useNativeDriver: false,
+							}),
+						]).start();
+					}),
+					getLoopLoadingCicleAnimation(),
+				]).start(() => {
+					setStatus('finishLoading');
+				});
 			});
+		}
+		if (status === 'finishLoading') {
+			Animated.timing(errorMessageDropDown, {
+				duration: 500,
+				toValue: 0,
+				useNativeDriver: false,
+			}).start();
 		}
 	}, [status]);
 
@@ -130,11 +283,14 @@ const SendButton = () => {
 	return (
 		<>
 			<View style={styles.buttonContainer}>
-				<TouchableWithoutFeedback onPress={startSend}>
+				<TouchableWithoutFeedback
+					onPress={status === 'init' ? startSend : repeatAnimation}>
 					<Animated.View
 						style={[
 							styles.buttonOptionPart,
-							{width: buttonOptionWidthAnimatedValue},
+							{
+								width: buttonOptionWidthAnimatedValue,
+							},
 						]}>
 						{optionContent}
 					</Animated.View>
@@ -147,27 +303,6 @@ const SendButton = () => {
 					<Text style={[styles.text, styles.errorColorText]}>{content}</Text>
 				</Animated.View>
 			</View>
-			<Button
-				title={'reset'}
-				onPress={() => {
-					Animated.parallel([
-						Animated.timing(buttonContentWidthAnimatedValue, {
-							duration: 500,
-							easing: Easing.inOut(Easing.ease),
-							delay: 0,
-							toValue: 150,
-							useNativeDriver: false,
-						}),
-						Animated.timing(buttonOptionWidthAnimatedValue, {
-							duration: 500,
-							easing: Easing.inOut(Easing.ease),
-							delay: 0,
-							toValue: 150,
-							useNativeDriver: false,
-						}),
-					]).start(() => setStatus('init'));
-				}}
-			/>
 		</>
 	);
 };
